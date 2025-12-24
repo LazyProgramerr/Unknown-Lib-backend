@@ -17,6 +17,7 @@ router.get('/dashboard', async (req, res) => {
 
     try {
         const users = await TelegramUser.find({});
+        const tokens = await require('../models/TelegramLink').find({});
         let html = `
             <!DOCTYPE html>
             <html>
@@ -33,7 +34,9 @@ router.get('/dashboard', async (req, res) => {
                     .chat-id { font-family: monospace; color: #5f6368; }
                     .no-users { padding: 40px; text-align: center; color: #70757a; font-size: 18px; }
                     .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; background: #e8f0fe; color: #1967d2; font-size: 12px; font-weight: 500; }
+                    .debug-header { margin-top: 50px; padding-top: 20px; border-top: 1px dashed #ccc; color: #d93025; }
                 </style>
+
                 <script>
                     // Anti-Tamper Protection
                     document.addEventListener('contextmenu', event => event.preventDefault()); // Disable Right Click
@@ -81,8 +84,34 @@ router.get('/dashboard', async (req, res) => {
                         </tbody>
                     </table>
                     `}
+
+                    <div class="debug-header">
+                        <h2>Debug: Active Linking Tokens</h2>
+                        <p>Tokens currently in database (Expires in 5 mins)</p>
+                    </div>
+                    ${tokens.length === 0 ? '<div class="no-users">No active tokens found.</div>' : `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Token (Hex)</th>
+                                <th>User ID</th>
+                                <th>Created At</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tokens.map(t => `
+                                <tr>
+                                    <td><code>${t.token}</code></td>
+                                    <td>${t.userId}</td>
+                                    <td>${t.createdAt || 'N/A'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    `}
                 </div>
             </body>
+
             </html>
         `;
         res.send(html);
