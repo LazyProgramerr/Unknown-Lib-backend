@@ -7,7 +7,8 @@ const server = http.createServer(app);
 
 server.listen(port, async () => {
     console.log(`Server listening on port ${port}`);
-    const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL; // e.g., https://yourdomain.com/telegram/webhook
+    const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL;
+    console.log('DEBUG: TELEGRAM_WEBHOOK_URL value:', webhookUrl ? webhookUrl : '[NOT SET]');
     if (webhookUrl) {
         try {
             await bot.setWebHook(webhookUrl);
