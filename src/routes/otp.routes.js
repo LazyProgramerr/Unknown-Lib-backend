@@ -12,6 +12,7 @@ router.post('/link-token', async (req, res) => {
     const TelegramLink = require('../models/TelegramLink');
     await TelegramLink.create({ token, userId });
     const deepLink = `https://t.me/${telegramBotUsername}?start=${token}`;
+    console.log(`[DEBUG] Generated link-token: ${token} for userId: ${userId}`);
     res.json({
         success: true,
         message: 'Link token generated',

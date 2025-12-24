@@ -27,8 +27,12 @@ async function handleStart(msg) {
     const telegramUserId = msg.from.id.toString(); // Authenticated Telegram User ID
     const parts = msg.text.split(' ');
     const token = parts[1]; // token after /start
+    console.log(`[DEBUG] Received handleStart for token: "${token}" from chatId: ${chatId}`);
 
-    if (!token) return; // ignore plain /start
+    if (!token) {
+        console.log('[DEBUG] No token found in /start message');
+        return;
+    }
 
     // Find the linking token
     const link = await TelegramLink.findOne({ token });
