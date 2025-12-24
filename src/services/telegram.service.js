@@ -1,11 +1,13 @@
 const TelegramBot = require('node-telegram-bot-api');
-const { telegramBotToken } = require('../config/env');
+const { telegramBotToken, telegramWebhookUrl } = require('../config/env');
 const TelegramUser = require('../models/TelegramUser');
 const TelegramLink = require('../models/TelegramLink');
 
 // Initialize bot: Use polling if no webhook URL is set (for local dev)
-const isPolling = !process.env.TELEGRAM_WEBHOOK_URL;
+const isPolling = !telegramWebhookUrl;
 const bot = new TelegramBot(telegramBotToken, { polling: isPolling });
+
+console.log(`[INIT] Bot initialized in ${isPolling ? 'POLLING' : 'WEBHOOK'} mode.`);
 
 if (isPolling) {
     console.log('Bot started in POLLING mode (no webhook configured)');

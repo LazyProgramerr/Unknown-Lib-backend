@@ -4,6 +4,7 @@ module.exports = {
     mongoUri: process.env.MONGO_URI,
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
     telegramBotUsername: process.env.TELEGRAM_BOT_USERNAME,
+    telegramWebhookUrl: process.env.TELEGRAM_WEBHOOK_URL,
     otpRateLimit: 5, // max requests per minute per user
     adminAccessCode: process.env.ADMIN_ACCESS_CODE,
 };

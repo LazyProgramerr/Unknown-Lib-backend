@@ -1,22 +1,24 @@
 const http = require('http');
 const app = require('./app');
-const { port } = require('./config/env');
+const { port, telegramWebhookUrl } = require('./config/env');
 const { bot } = require('./services/telegram.service');
 
 const server = http.createServer(app);
 
 server.listen(port, async () => {
     console.log(`Server listening on port ${port}`);
-    const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL;
-    console.log('DEBUG: TELEGRAM_WEBHOOK_URL value:', webhookUrl ? webhookUrl : '[NOT SET]');
-    if (webhookUrl) {
+    console.log('DEBUG: Configured Webhook URL:', telegramWebhookUrl ? telegramWebhookUrl : '[NOT SET]');
+
+    if (telegramWebhookUrl) {
         try {
-            await bot.setWebHook(webhookUrl);
-            console.log('Telegram webhook set to', webhookUrl);
+            console.log('Attempting to set Telegram webhook...');
+            await bot.setWebHook(telegramWebhookUrl);
+            console.log('✅ Telegram webhook set successfully to:', telegramWebhookUrl);
         } catch (err) {
-            console.error('Failed to set Telegram webhook:', err);
+            console.error('❌ Failed to set Telegram webhook:', err.message);
+            console.error('❌ Telegram webhook setup failed. Bot might not receive updates.');
         }
     } else {
-        console.warn('TELEGRAM_WEBHOOK_URL not set – webhook not configured');
+        console.warn('⚠️ TELEGRAM_WEBHOOK_URL not set – falling back to POLLING mode');
     }
 });
