@@ -28,8 +28,9 @@ async function handleStart(msg) {
     const chatId = msg.chat.id.toString();
     const telegramUserId = msg.from.id.toString();
     // Use regex to extract token robustly (handles multiple spaces or bot username)
-    const tokenMatch = msg.text.match(/\/start\s+([a-fA-F0-9]+)/);
-    const token = tokenMatch ? tokenMatch[1] : null;
+    const tokenMatch = msg.text.match(/^\/start(?:@\w+)?\s+(.+)$/);
+    const token = tokenMatch ? tokenMatch[1].trim() : null;
+
 
     console.log(`Processing link request for user (chatId: ${chatId})`);
 
