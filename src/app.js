@@ -14,4 +14,18 @@ app.use('/telegram', telegramRoutes);
 app.use('/otp', otpRoutes);
 app.use('/admin', adminRoutes);
 
+// Health check and diagnostic route
+app.get('/health', (req, res) => {
+    const { telegramWebhookUrl, telegramBotUsername } = require('./config/env');
+    res.json({
+        status: 'UP',
+        timestamp: new Date().toISOString(),
+        config: {
+            botUsername: telegramBotUsername,
+            webhookSet: !!telegramWebhookUrl,
+            webhookUrl: telegramWebhookUrl || 'NOT_SET'
+        }
+    });
+});
+
 module.exports = app;
