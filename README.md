@@ -15,6 +15,10 @@ This repository provides a production‑ready backend for OTP authentication via
 - Automatic cleanup of expired OTPs and link tokens via MongoDB TTL indexes.
 - No secrets are hard‑coded; all configuration comes from environment variables.
 - Fully modular codebase (config, models, services, routes).
+- **Secure Admin Dashboard**: Protected web view to see linked users.
+- **Strict 1:1 Binding**: One Telegram account per app account.
+- **Account Unlinking**: Ability to disconnect and change Telegram accounts.
+- **Failure Recovery**: Automatic "Repair Link" generation if bot is blocked.
 
 ## Prerequisites
 - **Node.js**: [Download & Install Node.js (LTS)](https://nodejs.org/) (Required to run the server)
@@ -78,6 +82,13 @@ All endpoints are prefixed with `/otp`.
   Sends a 6‑digit OTP to the linked Telegram chat.
 - **POST `/otp/verify`** – body `{ "userId": "<app_user_id>", "otp": "123456" }`
   Returns `{ "success": true }` on valid OTP.
+- **POST `/otp/unlink`** – body `{ "userId": "<app_user_id>" }`
+  Removes the Telegram link for given user.
+
+## Admin Dashboard
+The backend provides a secure dashboard at `/admin/dashboard`.
+- **Access**: Requires the `code` query parameter (e.g., `/admin/dashboard?code=YOUR_SECRET_CODE`).
+- **Security**: Disabled if `ADMIN_ACCESS_CODE` is not set. Features anti‑tamper protections (disables Inspect/Right‑Click).
 
 ## Telegram Webhook
 Telegram will POST updates to `/telegram/webhook`. The server extracts the `/start <token>` payload, validates the token, and stores the mapping between `userId` and Telegram `chatId`.

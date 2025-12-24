@@ -47,6 +47,7 @@ Scroll down to the **Environment Variables** section on the Render setup page (o
 | `TELEGRAM_BOT_TOKEN` | `123456:ABC-DEF...` | Your Bot Token |
 | `TELEGRAM_BOT_USERNAME` | `OtpVantaBot` | Your Bot Username (no `@`) |
 | `TELEGRAM_WEBHOOK_URL` | `https://your-app-name.onrender.com/telegram/webhook` | **Wait!** See below. |
+| `ADMIN_ACCESS_CODE` | `your_secret_code` | Secret code to protect your admin dashboard. |
 
 > **Important**: You won't know your exact Render URL (`your-app-name.onrender.com`) until *after* you click "Create Web Service".
 > For the first deployment, you can leave `TELEGRAM_WEBHOOK_URL` blank (the bot will use polling mode temporarily) OR fill it in if Render previews the URL name.
