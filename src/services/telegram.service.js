@@ -24,29 +24,46 @@ if (isPolling) {
  */
 async function handleStart(msg) {
     const chatId = msg.chat.id.toString();
+    const telegramUserId = msg.from.id.toString(); // Authenticated Telegram User ID
     const parts = msg.text.split(' ');
     const token = parts[1]; // token after /start
+
     if (!token) return; // ignore plain /start
 
     // Find the linking token
     const link = await TelegramLink.findOne({ token });
     if (!link) {
-        // Invalid or expired token
         await bot.sendMessage(chatId, '❌ Invalid or expired link token.');
         return;
     }
 
-    // Upsert mapping between userId and chatId
-    await TelegramUser.findOneAndUpdate(
-        { userId: link.userId },
-        { chatId },
-        { upsert: true, new: true }
-    );
+    // 1. Check if App User is already linked
+    const existingAppUserLink = await TelegramUser.findOne({ userId: link.userId });
+    if (existingAppUserLink) {
+        await TelegramLink.deleteOne({ _id: link._id });
+        await bot.sendMessage(chatId, '⚠️ This application account is already linked to a Telegram user.');
+        return;
+    }
+
+    // 2. Check if Telegram User is already linked
+    const existingTelegramUserLink = await TelegramUser.findOne({ telegramUserId });
+    if (existingTelegramUserLink) {
+        await TelegramLink.deleteOne({ _id: link._id });
+        await bot.sendMessage(chatId, '⚠️ This Telegram account is already linked to an application user. Unlink it first.');
+        return;
+    }
+
+    // Create new strict mapping
+    await TelegramUser.create({
+        userId: link.userId,
+        telegramUserId,
+        chatId
+    });
 
     // Delete the link token – one‑time use
     await TelegramLink.deleteOne({ _id: link._id });
 
-    await bot.sendMessage(chatId, '✅ Telegram linked successfully. You can now request an OTP.');
+    await bot.sendMessage(chatId, '✅ Telegram linked successfully. You have secured your account.');
 }
 
 module.exports = { bot, handleStart };

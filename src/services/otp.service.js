@@ -44,7 +44,18 @@ async function generateAndSendOtp(userId) {
         { hashedOtp: hashed, expiresAt },
         { upsert: true, new: true }
     );
-    await bot.sendMessage(user.chatId, `Your verification code is: ${otp}`);
+
+    try {
+        await bot.sendMessage(user.chatId, `Your verification code is: ${otp}`);
+    } catch (err) {
+        // Check for 403 Forbidden (Blocked by user)
+        if (err.response && err.response.statusCode === 403) {
+            // Do NOT unlink: user requested persistent linking.
+            // Just throw error so client knows delivery failed.
+            throw new Error('Telegram bot blocked. Please unblock the bot to receive OTPs.');
+        }
+        throw err; // Re-throw other errors
+    }
     return true;
 }
 
@@ -69,4 +80,14 @@ async function verifyOtp(userId, otp) {
     return isValid;
 }
 
-module.exports = { generateAndSendOtp, verifyOtp };
+/**
+ * Unlinks the Telegram account for a given user.
+ * @param {string} userId - The unique identifier for the user.
+ * @returns {Promise<boolean>} - True if unlinked, false if wasn't linked.
+ */
+async function unlinkTelegram(userId) {
+    const result = await TelegramUser.deleteOne({ userId });
+    return result.deletedCount > 0;
+}
+
+module.exports = { generateAndSendOtp, verifyOtp, unlinkTelegram };

@@ -40,7 +40,13 @@ interface ApiService {
 
     @POST("otp/verify")
     suspend fun verifyOtp(@Body body: VerifyRequest): VerifyResponse
+
+    @POST("otp/unlink")
+    suspend fun unlinkTelegram(@Body body: UnlinkRequest): UnlinkResponse
 }
+
+data class UnlinkRequest(val userId: String)
+data class UnlinkResponse(val success: Boolean, val message: String?)
 ```
 
 ## 3. Implementation Flow
@@ -124,7 +130,38 @@ fun verifyOtp(userId: String, code: String) {
 }
 ```
 
+### Step E: Unlink Account (Account Modification)
+
+Call this to allow the user to change their Telegram account.
+
+```kotlin
+fun unlinkTelegram(userId: String) {
+    CoroutineScope(Dispatchers.IO).launch {
+        try {
+            val response = api.unlinkTelegram(UnlinkRequest(userId))
+             withContext(Dispatchers.Main) {
+                if (response.success) {
+                    showToast("Account unlinked. You can now link a new Telegram account.")
+                }
+            }
+        } catch (e: Exception) {
+            // Handle error
+        }
+    }
+}
+```
+
 ## 4. Error Handling Notes
 - **400 Bad Request**: Typically means `userId` is missing or the Telegram account is not linked yet.
 - **401 Unauthorized**: Invalid or expired OTP.
 - **Rate Limiting**: If you request OTPs too fast (>5/min), the backend will return an error. Handle this gracefully in UI.
+- **Bot Blocked (403)**: If the backend returns `403` with a `repairLink`, it means the bot cannot message the user.
+  - **Action**: Show a dialog: "Connection Lost. Tap to Repair".
+  - **On Tap**: Open the `repairLink` (Telegram) so the user can press Start and re-establish the link.
+
+```json
+{
+  "error": "Telegram bot blocked...",
+  "repairLink": "https://t.me/OtpVantaBot?start=..."
+}
+```
