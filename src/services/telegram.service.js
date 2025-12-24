@@ -40,9 +40,11 @@ async function handleStart(msg) {
 
     if (!link) {
         const allActive = await TelegramLink.find({}, 'token');
-        console.error(`Link token "${token}" not found. Current tokens in DB: [${allActive.map(t => t.token).join(', ')}]`);
-        return bot.sendMessage(chatId, '❌ This registration link is invalid or has expired.\n\nPlease generate a new link from your application. Note that links expire after 20 minutes for your security.');
+        const envLabel = process.env.TELEGRAM_WEBHOOK_URL ? 'PRODUCTION' : 'LOCAL';
+        console.error(`[${envLabel}] Link token "${token}" not found. Current tokens in DB: [${allActive.map(t => t.token).join(', ')}]`);
+        return bot.sendMessage(chatId, `❌ This registration link is invalid or has expired.\n\nServer: ${envLabel}\n\nPlease generate a new link from your application. Note that links expire after 20 minutes for your security.`);
     }
+
 
 
 
