@@ -37,21 +37,19 @@ async function handleStart(msg) {
         return;
     }
 
-    // 1. Check if App User is already linked
     const existingAppUserLink = await TelegramUser.findOne({ userId: link.userId });
     if (existingAppUserLink) {
-        await TelegramLink.deleteOne({ _id: link._id });
         await bot.sendMessage(chatId, '⚠️ This application account is already linked to a Telegram user.');
         return;
     }
 
-    // 2. Check if Telegram User is already linked
+
     const existingTelegramUserLink = await TelegramUser.findOne({ telegramUserId });
     if (existingTelegramUserLink) {
-        await TelegramLink.deleteOne({ _id: link._id });
         await bot.sendMessage(chatId, '⚠️ This Telegram account is already linked to an application user. Unlink it first.');
         return;
     }
+
 
     // Create new strict mapping
     await TelegramUser.create({
