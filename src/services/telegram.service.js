@@ -24,48 +24,61 @@ if (isPolling) {
  */
 async function handleStart(msg) {
     const chatId = msg.chat.id.toString();
-    const telegramUserId = msg.from.id.toString(); // Authenticated Telegram User ID
+    const telegramUserId = msg.from.id.toString();
     const parts = msg.text.split(' ');
-    const token = parts[1]; // token after /start
-    console.log(`[DEBUG] Received handleStart for token: "${token}" from chatId: ${chatId}`);
+    const token = parts[1] ? parts[1].trim() : null;
+
+    console.log(`Processing link request for user (chatId: ${chatId})`);
+
 
     if (!token) {
-        console.log('[DEBUG] No token found in /start message');
-        return;
+        return bot.sendMessage(chatId, '❌ Please use the unique link provided by your application to start.');
     }
 
     // Find the linking token
+    const TelegramLink = require('../models/TelegramLink');
     const link = await TelegramLink.findOne({ token });
+
     if (!link) {
-        await bot.sendMessage(chatId, '❌ Invalid or expired link token.');
-        return;
+        console.log(`Link token "${token}" not found or already used.`);
+        return bot.sendMessage(chatId, '❌ This registration link is invalid or has expired.\n\nPlease generate a new link from your application. Note that links expire after 20 minutes for your security.');
     }
 
+
+    // 1. Check if App User is already linked
     const existingAppUserLink = await TelegramUser.findOne({ userId: link.userId });
     if (existingAppUserLink) {
-        await bot.sendMessage(chatId, '⚠️ This application account is already linked to a Telegram user.');
-        return;
+        console.log(`Registration conflict: App User ${link.userId} is already linked.`);
+        return bot.sendMessage(chatId, 'ℹ️ You are already registered!\n\nThis application account is already securely linked to a Telegram user. No further action is needed.');
     }
 
-
+    // 2. Check if this Telegram ID is already linked to SOMEONE ELSE
     const existingTelegramUserLink = await TelegramUser.findOne({ telegramUserId });
     if (existingTelegramUserLink) {
-        await bot.sendMessage(chatId, '⚠️ This Telegram account is already linked to an application user. Unlink it first.');
-        return;
+        console.log(`Registration conflict: Telegram ID ${telegramUserId} is already linked.`);
+        return bot.sendMessage(chatId, '⚠️ You are already registered with another account!\n\nThis Telegram account is already linked to a different application user. Please use the account you originally registered with.');
     }
 
 
     // Create new strict mapping
-    await TelegramUser.create({
-        userId: link.userId,
-        telegramUserId,
-        chatId
-    });
+    try {
+        await TelegramUser.create({
+            userId: link.userId,
+            telegramUserId,
+            chatId
+        });
 
-    // Delete the link token – one‑time use
-    await TelegramLink.deleteOne({ _id: link._id });
+        // Delete the link token – one‑time use
+        await TelegramLink.deleteOne({ _id: link._id });
 
-    await bot.sendMessage(chatId, '✅ Telegram linked successfully. You have secured your account.');
+        await bot.sendMessage(chatId, '✅ Success! You are now registered and secured.\n\nYou will receive OTP verification codes here.');
+    } catch (err) {
+        console.error('Database error during Telegram linking:', err);
+        // Clean error message for user, no stack trace
+        await bot.sendMessage(chatId, '❌ Registration failed.\n\nA technical issue occurred on our end. Please try again in a few minutes.');
+    }
 }
+
+
 
 module.exports = { bot, handleStart };

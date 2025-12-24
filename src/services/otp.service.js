@@ -59,8 +59,9 @@ async function generateAndSendOtp(userId) {
     );
 
     try {
-        await bot.sendMessage(user.chatId, `Your verification code is: ${otp}`);
+        await bot.sendMessage(user.telegramUserId, `Your verification code is: ${otp}`);
     } catch (err) {
+
         // Handle 403 Forbidden (Blocked by user)
         if (err.response && (err.response.statusCode === 403 || (err.response.body && err.response.body.error_code === 403))) {
             throw new BotBlockedError('Telegram bot blocked');

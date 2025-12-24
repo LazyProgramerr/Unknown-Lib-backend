@@ -1,22 +1,22 @@
 # Android Integration Guide
 
-This guide provides a reference for integrating the Telegram OTP backend into your Android application using **Kotlin** and **Retrofit**.
+This document outlines the protocol for integrating the Telegram OTP Service into an Android application using **Kotlin** and **Retrofit**.
 
-## 1. Dependencies
+## 1. Network Configuration
 
-Add Retrofit and Gson converter to your `build.gradle` (Module: app):
+### Dependencies
+Add the following to your `build.gradle` (Module: app):
 
 ```gradle
 dependencies {
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
-    // Coroutines support usually built-in or via adapter
 }
 ```
 
-## 2. API Interface
+## 2. API Contract
 
-Define the endpoints matching the backend:
+Define the following interface to interact with the authentication endpoints.
 
 ```kotlin
 import retrofit2.http.Body
@@ -26,142 +26,99 @@ data class LinkTokenRequest(val userId: String)
 data class LinkTokenResponse(val deepLink: String)
 
 data class OtpRequest(val userId: String)
-data class OtpResponse(val message: String)
+data class OtpResponse(val success: Boolean, val message: String)
 
 data class VerifyRequest(val userId: String, val otp: String)
 data class VerifyResponse(val success: Boolean)
 
-interface ApiService {
+interface AuthenticationService {
     @POST("otp/link-token")
-    suspend fun getLinkToken(@Body body: LinkTokenRequest): LinkTokenResponse
+    suspend fun requestLinking(@Body body: LinkTokenRequest): LinkTokenResponse
 
     @POST("otp/request-otp")
-    suspend fun requestOtp(@Body body: OtpRequest): OtpResponse
+    suspend fun deliverOtp(@Body body: OtpRequest): OtpResponse
 
     @POST("otp/verify")
-    suspend fun verifyOtp(@Body body: VerifyRequest): VerifyResponse
+    suspend fun validateOtp(@Body body: VerifyRequest): VerifyResponse
 
     @POST("otp/unlink")
-    suspend fun unlinkTelegram(@Body body: UnlinkRequest): UnlinkResponse
+    suspend fun disconnectTelegram(@Body body: UnlinkRequest): UnlinkResponse
 }
 
 data class UnlinkRequest(val userId: String)
 data class UnlinkResponse(val success: Boolean, val message: String?)
 ```
 
-## 3. Implementation Flow
+## 3. Integration Lifecycle
 
-### Step A: Initialize Retrofit
-
-```kotlin
-val retrofit = Retrofit.Builder()
-    .baseUrl("http://<YOUR_BACKEND_IP>:3000/") // Use 10.0.2.2 for Android Emulator connecting to localhost
-    .addConverterFactory(GsonConverterFactory.create())
-    .build()
-
-val api = retrofit.create(ApiService::class.java)
-```
-
-### Step B: Link Telegram Account (One-time setup)
-
-Call this when the user wants to enable Telegram 2FA.
+### Phase 1: Identity Binding
+To secure an account with Telegram, call `requestLinking`. The user will be redirected to the Telegram app to finalize the connection.
 
 ```kotlin
-fun linkTelegramAccount(userId: String) {
-    CoroutineScope(Dispatchers.IO).launch {
+fun initiateTelegramLinking(userId: String) {
+    scope.launch(Dispatchers.IO) {
         try {
-            val response = api.getLinkToken(LinkTokenRequest(userId))
-            val deepLink = response.deepLink
-
-            // Open Telegram App with the deep link
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(deepLink))
+            val response = api.requestLinking(LinkTokenRequest(userId))
+            // Launch Telegram Deep Link
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(response.deepLink))
             context.startActivity(intent)
-
         } catch (e: Exception) {
-            e.printStackTrace()
-            // Handle error
+            handleError(e)
         }
     }
 }
 ```
-*User Action:* The user taps "Start" in the Telegram bot.
 
-### Step C: Request OTP (Login flow)
-
-Call this when the user attempts to log in.
+### Phase 2: OTP Challenge
+During authentication, trigger the OTP delivery.
 
 ```kotlin
-fun requestOtp(userId: String) {
-    CoroutineScope(Dispatchers.IO).launch {
+fun challengeUser(userId: String) {
+    scope.launch(Dispatchers.IO) {
         try {
-            api.requestOtp(OtpRequest(userId))
-            withContext(Dispatchers.Main) {
-                // Show UI to enter OTP
-                showToast("OTP sent to your Telegram!")
-            }
+            api.deliverOtp(OtpRequest(userId))
+            view.showOtpEntry()
         } catch (e: Exception) {
-            // Handle error (e.g. Rate limit, account not linked)
+            // Handle rate limits or unlinked accounts
         }
     }
 }
 ```
 
-### Step D: Verify OTP
-
-Submit the code entered by the user.
+### Phase 3: Resolution
+Submit the user-entered code for validation.
 
 ```kotlin
-fun verifyOtp(userId: String, code: String) {
-    CoroutineScope(Dispatchers.IO).launch {
-        try {
-            val response = api.verifyOtp(VerifyRequest(userId, code))
-            withContext(Dispatchers.Main) {
-                if (response.success) {
-                    // Proceed to Home Screen
-                    showToast("Login Successful!")
-                } else {
-                    showToast("Invalid OTP")
-                }
-            }
-        } catch (e: Exception) {
-            // Handle error (401 Unauthorized usually means invalid OTP)
+fun resolveChallenge(userId: String, code: String) {
+    scope.launch(Dispatchers.IO) {
+        val response = api.validateOtp(VerifyRequest(userId, code))
+        if (response.success) {
+            onAuthenticationSuccess()
+        } else {
+            onAuthenticationFailure()
         }
     }
 }
 ```
 
-### Step E: Unlink Account (Account Modification)
+## 4. Error Resolution Flow
 
-Call this to allow the user to change their Telegram account.
+### Bot Blockage (HTTP 403)
+If the backend returns a `403 Forbidden` status with a `repairLink`, the user has likely blocked the bot.
 
-```kotlin
-fun unlinkTelegram(userId: String) {
-    CoroutineScope(Dispatchers.IO).launch {
-        try {
-            val response = api.unlinkTelegram(UnlinkRequest(userId))
-             withContext(Dispatchers.Main) {
-                if (response.success) {
-                    showToast("Account unlinked. You can now link a new Telegram account.")
-                }
-            }
-        } catch (e: Exception) {
-            // Handle error
-        }
-    }
-}
-```
-
-## 4. Error Handling Notes
-- **400 Bad Request**: Typically means `userId` is missing or the Telegram account is not linked yet.
-- **401 Unauthorized**: Invalid or expired OTP.
-- **Rate Limiting**: If you request OTPs too fast (>5/min), the backend will return an error. Handle this gracefully in UI.
-- **Bot Blocked (403)**: If the backend returns `403` with a `repairLink`, it means the bot cannot message the user.
-  - **Action**: Show a dialog: "Connection Lost. Tap to Repair".
-  - **On Tap**: Open the `repairLink` (Telegram) so the user can press Start and re-establish the link.
+**Recommended UI Strategy:**
+1. Display a "Secure Connection Lost" notification.
+2. Provide a "Reconnect" button that opens the `repairLink` provided in the JSON response.
 
 ```json
 {
-  "error": "Telegram bot blocked...",
-  "repairLink": "https://t.me/OtpVantaBot?start=..."
+  "success": false,
+  "error": "BOT_BLOCKED",
+  "repairLink": "https://t.me/your_bot?start=recovery_token"
 }
 ```
+
+## 5. Security Best Practices
+*   **Persistent Storage**: Store the `userId` securely (e.g., EncryptedSharedPreferences).
+*   **Rate Limits**: Implement UI-level cooldowns to match the backend threshold of 5 requests per minute.
+*   **Transport Layer**: Always use HTTPS in production environments.

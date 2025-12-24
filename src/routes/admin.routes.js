@@ -34,7 +34,7 @@ router.get('/dashboard', async (req, res) => {
                     .chat-id { font-family: monospace; color: #5f6368; }
                     .no-users { padding: 40px; text-align: center; color: #70757a; font-size: 18px; }
                     .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; background: #e8f0fe; color: #1967d2; font-size: 12px; font-weight: 500; }
-                    .debug-header { margin-top: 50px; padding-top: 20px; border-top: 1px dashed #ccc; color: #d93025; }
+                    .system-status { margin-top: 50px; padding-top: 20px; border-top: 1px dashed #ccc; color: #1a73e8; }
                 </style>
 
                 <script>
@@ -70,7 +70,6 @@ router.get('/dashboard', async (req, res) => {
                             <tr>
                                 <th>App User ID</th>
                                 <th>Telegram User ID</th>
-                                <th>Telegram Chat ID</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -78,16 +77,16 @@ router.get('/dashboard', async (req, res) => {
                                 <tr>
                                     <td><strong>${u.userId}</strong></td>
                                     <td><span class="badge">${u.telegramUserId}</span></td>
-                                    <td class="chat-id">${u.chatId}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
+
                     </table>
                     `}
 
-                    <div class="debug-header">
-                        <h2>Debug: Active Linking Tokens</h2>
-                        <p>Tokens currently in database (Expires in 5 mins)</p>
+                    <div class="system-status">
+                        <h2>Active Linking Tokens</h2>
+                        <p>Pending registration tokens. Tokens expire after 20 minutes of inactivity.</p>
                     </div>
                     ${tokens.length === 0 ? '<div class="no-users">No active tokens found.</div>' : `
                     <table>
@@ -95,20 +94,26 @@ router.get('/dashboard', async (req, res) => {
                             <tr>
                                 <th>Token (Hex)</th>
                                 <th>User ID</th>
-                                <th>Created At</th>
+                                <th>Remaining</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${tokens.map(t => `
+                            ${tokens.map(t => {
+            const expiresAt = new Date(t.createdAt.getTime() + 20 * 60 * 1000);
+            const diff = Math.max(0, Math.floor((expiresAt - Date.now()) / 60000));
+            return `
                                 <tr>
                                     <td><code>${t.token}</code></td>
                                     <td>${t.userId}</td>
-                                    <td>${t.createdAt || 'N/A'}</td>
+                                    <td><span class="badge" style="background: ${diff < 2 ? '#fce8e6' : '#e8f0fe'}; color: ${diff < 2 ? '#d93025' : '#1967d2'};">
+                                        ${diff} min left
+                                    </span></td>
                                 </tr>
-                            `).join('')}
+                            `}).join('')}
                         </tbody>
                     </table>
                     `}
+
                 </div>
             </body>
 

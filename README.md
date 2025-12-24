@@ -1,107 +1,78 @@
-# Telegram OTP Authentication Backend
+# Telegram OTP Service
 
-## Overview
-This repository provides a production‑ready backend for OTP authentication via a Telegram bot. It is built with **Node.js**, **Express**, and **MongoDB (Mongoose)**. The flow is:
-1. Android app requests a deep‑link token.
-2. Backend returns a Telegram deep‑link (`https://t.me/<BOT_USERNAME>?start=<token>`).
-3. User opens the link, presses **Start**, and the bot links the Telegram `chatId` to the app `userId`.
-4. Android app requests an OTP – the backend generates a 6‑digit code, stores a SHA‑256 hash, and sends the plain OTP via the Telegram bot.
-5. Android app verifies the OTP – the backend checks the hash, enforces a 5 min expiry and single‑use.
+A secure, scalable backend service for Telegram-based One-Time Password (OTP) authentication. This system enables developers to integrate Telegram as a secure delivery channel for identity verification within mobile or web applications.
 
-## Features
-- Secure 6‑digit OTPs, hashed with SHA‑256 before storage.
-- OTP expires after **5 minutes** and can be used only once.
-- Rate‑limited to **5 OTP requests per minute** per user.
-- Automatic cleanup of expired OTPs and link tokens via MongoDB TTL indexes.
-- No secrets are hard‑coded; all configuration comes from environment variables.
-- Fully modular codebase (config, models, services, routes).
-- **Secure Admin Dashboard**: Protected web view to see linked users.
-- **Strict 1:1 Binding**: One Telegram account per app account.
-- **Account Unlinking**: Ability to disconnect and change Telegram accounts.
-- **Failure Recovery**: Automatic "Repair Link" generation if bot is blocked.
+## System Architecture
 
-## Prerequisites
-- **Node.js**: [Download & Install Node.js (LTS)](https://nodejs.org/) (Required to run the server)
-- **MongoDB**: [Download & Install MongoDB Community Server](https://www.mongodb.com/try/download/community) (Required database)
-- **Telegram Bot**: Created via [@BotFather](https://t.me/BotFather)
-- **Public Webhook URL**: Use [ngrok](https://ngrok.com/) for local testing
+The service facilitates a 1:1 binding between an application user and a Telegram account using a secure deep-linking protocol.
 
-## Setup
-1. **Clone the repository**
-   ```bash
-   git clone <repo-url>
-   cd <repo-directory>
-   ```
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-3. **Create an `.env` file** (copy from `.env.example`)
-   ```bash
-   cp .env.example .env
-   ```
-   Fill in the values:
-   - `PORT` – server port (default 3000)
-   - `MONGO_URI` – MongoDB connection string
-   - `TELEGRAM_BOT_TOKEN` – token from @BotFather
-   - `TELEGRAM_BOT_USERNAME` – bot username **without** the leading `@`
-   - `TELEGRAM_WEBHOOK_URL` – publicly reachable URL ending with `/telegram/webhook`
-4. **Start the server**
-   ```bash
-   npm run start
-   ```
-   The server will connect to MongoDB, start Express on the configured port, and set the Telegram webhook.
+1.  **Link Generation**: The application requests a unique registration token.
+2.  **Account Binding**: The user is redirected to the Telegram Bot via a deep link. Upon interaction, the backend establishes a permanent 1:1 mapping between the application `userId` and the Telegram **UID**.
+3.  **OTP Delivery**: Once linked, the application can request OTPs which are delivered instantly to the user's Telegram account.
+4.  **Verification**: The backend verifies the cryptographic hash of the provided OTP, enforcing expiration and single-use constraints.
 
-## Docker Usage (Recommended)
-You can run the entire stack (Node.js + MongoDB) without local installation using Docker.
+## Core Features
 
-1. **Configure `.env`**
-   Ensure your `.env` file has the correct `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, and `TELEGRAM_WEBHOOK_URL`.
-   Note: `MONGO_URI` in `.env` is ignored by Docker Compose (it uses the internal container network).
+*   **Cryptographic Security**: OTPs are hashed using SHA-256 before persistence; plain-text values are never stored.
+*   **Persistent Identity**: Utilizes Telegram's permanent User UID for identity mapping, ensuring link stability even across chat deletions or username changes.
+*   **Adaptive Security Policies**:
+    *   **OTP Expiration**: 5-minute validity window.
+    *   **Linking Window**: 20-minute generosity for manual setup.
+    *   **Rate Limiting**: Integrated threshold of 5 requests per minute per user to prevent abuse.
+*   **Intelligent Logic**: Automated handling of blocked bots with "Repair Link" recovery flow.
+*   **Administrative Oversight**: Secure dashboard with anti-tamper protections for real-time monitoring of linked identities and active sessions.
 
-2. **Start Services**
-   ```bash
-   docker-compose up --build
-   ```
-   This will start both the backend (port 3000) and MongoDB (port 27017).
+## Technical Stack
 
-3. **Verify**
-   The app will be accessible at `http://localhost:3000`.
+*   **Runtime**: Node.js
+*   **Framework**: Express.js
+*   **Database**: MongoDB (Mongoose)
+*   **Bot API**: node-telegram-bot-api
 
-## Deployment
-- **Render.com**: See [RENDER_DEPLOY.md](./RENDER_DEPLOY.md) for step-by-step instructions.
+## Deployment & Setup
 
-## Client Integration
-For details on how to integrate this backend with an **Android** app, see [ANDROID_GUIDE.md](./ANDROID_GUIDE.md).
+### Environment Configuration
+Copy `.env.example` to `.env` and configure the following:
 
-## API Endpoints
-All endpoints are prefixed with `/otp`.
-- **POST `/otp/link-token`** – body `{ "userId": "<app_user_id>" }`
-  Returns `{ "deepLink": "https://t.me/<BOT_USERNAME>?start=<token>" }`
-- **POST `/otp/request-otp`** – body `{ "userId": "<app_user_id>" }`
-  Sends a 6‑digit OTP to the linked Telegram chat.
-- **POST `/otp/verify`** – body `{ "userId": "<app_user_id>", "otp": "123456" }`
-  Returns `{ "success": true }` on valid OTP.
-- **POST `/otp/unlink`** – body `{ "userId": "<app_user_id>" }`
-  Removes the Telegram link for given user.
+| Variable | Description |
+| :--- | :--- |
+| `TELEGRAM_BOT_TOKEN` | API Token from [@BotFather](https://t.me/BotFather) |
+| `TELEGRAM_BOT_USERNAME` | The username of your bot (e.g., `OtpVantaBot`) |
+| `TELEGRAM_WEBHOOK_URL` | Public HTTPS endpoint for receiving Telegram updates |
+| `MONGO_URI` | MongoDB connection string |
+| `ADMIN_ACCESS_CODE` | Secret key for dashboard authorization |
 
-## Admin Dashboard
-The backend provides a secure dashboard at `/admin/dashboard`.
-- **Access**: Requires the `code` query parameter (e.g., `/admin/dashboard?code=YOUR_SECRET_CODE`).
-- **Security**: Disabled if `ADMIN_ACCESS_CODE` is not set. Features anti‑tamper protections (disables Inspect/Right‑Click).
+### Standard Installation
+```bash
+npm install
+npm start
+```
 
-## Telegram Webhook
-Telegram will POST updates to `/telegram/webhook`. The server extracts the `/start <token>` payload, validates the token, and stores the mapping between `userId` and Telegram `chatId`.
+### Containerized Environment (Recommended)
+```bash
+docker-compose up -d --build
+```
 
-## Security Considerations
-- OTPs are never stored in plain text – only a SHA‑256 hash is persisted.
-- Rate limiting prevents brute‑force attacks.
-- All secrets are loaded from environment variables; **do not commit `.env`**.
-- The bot can only message users after they press **Start**, complying with Telegram policies.
+## API Documentation
 
-## Cleanup & Maintenance
-- MongoDB TTL indexes automatically delete expired OTP documents and link tokens.
-- In‑memory rate‑limit counters reset each minute.
+### 🟢 `POST /otp/link-token`
+Initiates the linking process.
+*   **Request**: `{ "userId": "app_user_123" }`
+*   **Response**: `{ "deepLink": "https://t.me/your_bot?start=token" }`
+
+### 🟢 `POST /otp/request-otp`
+Sends a verification code to the linked account.
+*   **Request**: `{ "userId": "app_user_123" }`
+*   **Response**: `{ "success": true }`
+
+### 🟢 `POST /otp/verify`
+Validates a submitted code.
+*   **Request**: `{ "userId": "app_user_123", "otp": "123456" }`
+*   **Response**: `{ "success": true }`
+
+## Project Documentation
+*   [Android Integration Guide](./ANDROID_GUIDE.md)
+*   [Deployment Guide](./RENDER_DEPLOY.md)
 
 ## License
-MIT – feel free to use and adapt.
+Provided under the MIT License.

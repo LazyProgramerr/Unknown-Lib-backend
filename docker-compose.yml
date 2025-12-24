@@ -12,6 +12,8 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME}
       - TELEGRAM_WEBHOOK_URL=${TELEGRAM_WEBHOOK_URL}
+      - ADMIN_ACCESS_CODE=${ADMIN_ACCESS_CODE}
+
     depends_on:
       - mongo
     restart: always
