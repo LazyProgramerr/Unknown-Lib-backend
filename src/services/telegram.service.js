@@ -25,24 +25,25 @@ if (isPolling) {
 async function handleStart(msg) {
     const chatId = msg.chat.id.toString();
     const telegramUserId = msg.from.id.toString();
-    const parts = msg.text.split(' ');
-    const token = parts[1] ? parts[1].trim() : null;
+    // Use regex to extract token robustly (handles multiple spaces or bot username)
+    const tokenMatch = msg.text.match(/\/start\s+([a-fA-F0-9]+)/);
+    const token = tokenMatch ? tokenMatch[1] : null;
 
     console.log(`Processing link request for user (chatId: ${chatId})`);
-
 
     if (!token) {
         return bot.sendMessage(chatId, '❌ Please use the unique link provided by your application to start.');
     }
 
     // Find the linking token
-    const TelegramLink = require('../models/TelegramLink');
     const link = await TelegramLink.findOne({ token });
 
     if (!link) {
-        console.log(`Link token "${token}" not found or already used.`);
+        const allActive = await TelegramLink.find({}, 'token');
+        console.error(`Link token "${token}" not found. Current tokens in DB: [${allActive.map(t => t.token).join(', ')}]`);
         return bot.sendMessage(chatId, '❌ This registration link is invalid or has expired.\n\nPlease generate a new link from your application. Note that links expire after 20 minutes for your security.');
     }
+
 
 
     // 1. Check if App User is already linked
