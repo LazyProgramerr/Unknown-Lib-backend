@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const otpService = require('../services/otp.service');
 
+const { telegramBotUsername } = require('../config/env');
+
 // 1️⃣ Generate deep‑link token for Telegram start
 router.post('/link-token', async (req, res) => {
     const { userId } = req.body;
@@ -9,8 +11,12 @@ router.post('/link-token', async (req, res) => {
     const token = require('crypto').randomBytes(16).toString('hex');
     const TelegramLink = require('../models/TelegramLink');
     await TelegramLink.create({ token, userId });
-    const deepLink = `https://t.me/${process.env.TELEGRAM_BOT_USERNAME}?start=${token}`;
-    res.json({ deepLink });
+    const deepLink = `https://t.me/${telegramBotUsername}?start=${token}`;
+    res.json({
+        success: true,
+        message: 'Link token generated',
+        deepLink
+    });
 });
 
 // 2️⃣ Request OTP after Telegram linked
@@ -18,21 +24,23 @@ router.post('/request-otp', async (req, res) => {
     const { userId } = req.body;
     try {
         await otpService.generateAndSendOtp(userId);
-        res.json({ message: 'OTP sent via Telegram' });
+        res.json({ success: true, message: 'OTP sent via Telegram' });
     } catch (e) {
         // If bot is blocked, generate a new deep link for the user to repair the connection
-        if (e.message.includes('Telegram bot blocked')) {
+        if (e.name === 'BotBlockedError') {
             const token = require('crypto').randomBytes(16).toString('hex');
             const TelegramLink = require('../models/TelegramLink');
             await TelegramLink.create({ token, userId });
-            const deepLink = `https://t.me/${process.env.TELEGRAM_BOT_USERNAME}?start=${token}`;
+            const deepLink = `https://t.me/${telegramBotUsername}?start=${token}`;
 
             return res.status(403).json({
-                error: 'Telegram bot blocked. Please tap the link to restore the connection.',
+                success: false,
+                error: 'BOT_BLOCKED',
+                message: 'Telegram bot blocked. Please start the bot again to restore delivery.',
                 repairLink: deepLink
             });
         }
-        res.status(400).json({ error: e.message });
+        res.status(400).json({ success: false, error: e.message });
     }
 });
 

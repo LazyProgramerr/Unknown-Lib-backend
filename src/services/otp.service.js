@@ -4,6 +4,17 @@ const Otp = require('../models/Otp');
 const TelegramUser = require('../models/TelegramUser');
 const { bot } = require('./telegram.service');
 
+/**
+ * Custom Error for cases where the Telegram bot is blocked by the user.
+ */
+class BotBlockedError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = 'BotBlockedError';
+        this.code = 'BOT_BLOCKED';
+    }
+}
+
 // In‑memory rate‑limit map (per user) cleared every minute
 const rateMap = new Map();
 const RATE_LIMIT = 5; // requests per minute
@@ -26,8 +37,10 @@ function canRequestOtp(userId) {
 /**
  * Generate a 6‑digit OTP, store its hash, and send via Telegram.
  * @param {string} userId - Application user identifier.
- * @throws Will throw if rate limit exceeded or Telegram not linked.
+ * @throws {BotBlockedError} Will throw if bot is blocked.
+ * @throws {Error} Will throw if rate limit exceeded or Telegram not linked.
  */
+
 async function generateAndSendOtp(userId) {
     if (!canRequestOtp(userId)) {
         throw new Error('Rate limit exceeded');
@@ -48,14 +61,13 @@ async function generateAndSendOtp(userId) {
     try {
         await bot.sendMessage(user.chatId, `Your verification code is: ${otp}`);
     } catch (err) {
-        // Check for 403 Forbidden (Blocked by user)
-        if (err.response && err.response.statusCode === 403) {
-            // Do NOT unlink: user requested persistent linking.
-            // Just throw error so client knows delivery failed.
-            throw new Error('Telegram bot blocked. Please unblock the bot to receive OTPs.');
+        // Handle 403 Forbidden (Blocked by user)
+        if (err.response && (err.response.statusCode === 403 || (err.response.body && err.response.body.error_code === 403))) {
+            throw new BotBlockedError('Telegram bot blocked');
         }
-        throw err; // Re-throw other errors
+        throw err;
     }
+
     return true;
 }
 
@@ -90,4 +102,4 @@ async function unlinkTelegram(userId) {
     return result.deletedCount > 0;
 }
 
-module.exports = { generateAndSendOtp, verifyOtp, unlinkTelegram };
+module.exports = { generateAndSendOtp, verifyOtp, unlinkTelegram, BotBlockedError };
