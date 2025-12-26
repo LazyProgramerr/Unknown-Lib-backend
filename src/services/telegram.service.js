@@ -54,15 +54,26 @@ async function handleStart(msg) {
     // 1. Check if App User is already linked
     const existingAppUserLink = await TelegramUser.findOne({ userId: link.userId });
     if (existingAppUserLink) {
-        console.log(`Registration conflict: App User ${link.userId} is already linked.`);
-        return bot.sendMessage(chatId, 'ℹ️ You are already registered!\n\nThis application account is already securely linked to a Telegram user. No further action is needed.');
+        // Cleanup token regardless of conflict to prevent stale data
+        await TelegramLink.deleteOne({ _id: link._id });
+
+        if (existingAppUserLink.telegramUserId === telegramUserId) {
+            console.log(`Repair success: App User ${link.userId} unblocked the bot.`);
+            return bot.sendMessage(chatId, '✅ Connection restored!\n\nYour account is already linked and the connection is now active. You will continue to receive OTP verification codes here.');
+        } else {
+            console.log(`Registration conflict: App User ${link.userId} is already linked to another Telegram ID.`);
+            return bot.sendMessage(chatId, 'ℹ️ This application account is already linked to a different Telegram user.');
+        }
     }
 
     // 2. Check if this Telegram ID is already linked to SOMEONE ELSE
     const existingTelegramUserLink = await TelegramUser.findOne({ telegramUserId });
     if (existingTelegramUserLink) {
+        // Cleanup token regardless of conflict to prevent stale data
+        await TelegramLink.deleteOne({ _id: link._id });
+
         console.log(`Registration conflict: Telegram ID ${telegramUserId} is already linked.`);
-        return bot.sendMessage(chatId, '⚠️ You are already registered with another account!\n\nThis Telegram account is already linked to a different application user. Please use the account you originally registered with.');
+        return bot.sendMessage(chatId, '⚠️ This Telegram account is already linked to a different application user.');
     }
 
 
