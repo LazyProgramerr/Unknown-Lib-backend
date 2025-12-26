@@ -59,7 +59,12 @@ async function handleStart(msg) {
 
         if (existingAppUserLink.telegramUserId === telegramUserId) {
             console.log(`Repair success: App User ${link.userId} unblocked the bot.`);
-            return bot.sendMessage(chatId, '✅ Connection restored!\n\nYour account is already linked and the connection is now active. You will continue to receive OTP verification codes here.');
+            // Send typing signal to "wake up" the chat/unmute
+            await bot.sendChatAction(chatId, 'typing');
+            return bot.sendMessage(chatId, '✅ Connection restored!\n\nYour account is linked and active. You will receive OTP codes here.\n\n🔔 IMPORTANT: Please **UNMUTE** and **PIN** this chat to ensure you don\'t miss verification notifications!', {
+                disable_notification: false,
+                parse_mode: 'Markdown'
+            });
         } else {
             console.log(`Registration conflict: App User ${link.userId} is already linked to another Telegram ID.`);
             return bot.sendMessage(chatId, 'ℹ️ This application account is already linked to a different Telegram user.');
@@ -88,7 +93,12 @@ async function handleStart(msg) {
         // Delete the link token – one‑time use
         await TelegramLink.deleteOne({ _id: link._id });
 
-        await bot.sendMessage(chatId, '✅ Success! You are now registered and secured.\n\nYou will receive OTP verification codes here.');
+        // Send typing signal to "wake up" the chat/unmute
+        await bot.sendChatAction(chatId, 'typing');
+        await bot.sendMessage(chatId, '✅ Success! You are now registered and secured.\n\nYou will receive OTP verification codes here.\n\n🔔 IMPORTANT: Please **UNMUTE** and **PIN** this chat to ensure you don\'t miss verification notifications!', {
+            disable_notification: false,
+            parse_mode: 'Markdown'
+        });
     } catch (err) {
         console.error('Database error during Telegram linking:', err);
         // Clean error message for user, no stack trace
