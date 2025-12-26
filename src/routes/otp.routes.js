@@ -8,11 +8,25 @@ const { telegramBotUsername } = require('../config/env');
 router.post('/link-token', async (req, res) => {
     const { userId } = req.body;
     if (!userId) return res.status(400).json({ error: 'userId required' });
-    const token = require('crypto').randomBytes(16).toString('hex');
+
     const TelegramLink = require('../models/TelegramLink');
+
+    // Reuse existing active link if available
+    const existingLink = await TelegramLink.findOne({ userId });
+    if (existingLink) {
+        const deepLink = `https://t.me/${telegramBotUsername}?start=${existingLink.token}`;
+        console.log(`Reusing existing link token for userId: ${userId}`);
+        return res.json({
+            success: true,
+            message: 'Active link token reused',
+            deepLink
+        });
+    }
+
+    const token = require('crypto').randomBytes(16).toString('hex');
     await TelegramLink.create({ token, userId });
     const deepLink = `https://t.me/${telegramBotUsername}?start=${token}`;
-    console.log(`Link token generated for userId: ${userId}`);
+    console.log(`New link token generated for userId: ${userId}`);
     res.json({
         success: true,
         message: 'Link token generated',
