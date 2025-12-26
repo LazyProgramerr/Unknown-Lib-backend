@@ -9,6 +9,12 @@ const adminRoutes = require('./routes/admin.routes');
 const app = express();
 app.use(express.json());
 
+// Request logger for debugging
+app.use((req, res, next) => {
+    console.log(`[DEBUG] ${req.method} ${req.path} - ${new Date().toISOString()}`);
+    next();
+});
+
 // Mount routes
 app.use('/telegram', telegramRoutes);
 app.use('/otp', otpRoutes);
@@ -25,6 +31,16 @@ app.get('/health', (req, res) => {
             webhookSet: !!telegramWebhookUrl,
             webhookUrl: telegramWebhookUrl || 'NOT_SET'
         }
+    });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+    console.error('[FATAL ERROR] Background/Request Task Failed:', err);
+    res.status(500).json({
+        success: false,
+        error: 'INTERNAL_SERVER_ERROR',
+        message: err.message
     });
 });
 

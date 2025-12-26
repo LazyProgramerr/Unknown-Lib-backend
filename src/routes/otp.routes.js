@@ -15,7 +15,7 @@ router.post('/link-token', async (req, res) => {
     const existingLink = await TelegramLink.findOne({ userId });
     if (existingLink) {
         const deepLink = `https://t.me/${telegramBotUsername}?start=${existingLink.token}`;
-        console.log(`Reusing existing link token for userId: ${userId}`);
+        console.log(`[DEBUG] Reusing existing link token for userId: ${userId} -> ${existingLink.token}`);
         return res.json({
             success: true,
             message: 'Active link token reused',
@@ -26,7 +26,7 @@ router.post('/link-token', async (req, res) => {
     const token = require('crypto').randomBytes(16).toString('hex');
     await TelegramLink.create({ token, userId });
     const deepLink = `https://t.me/${telegramBotUsername}?start=${token}`;
-    console.log(`New link token generated for userId: ${userId}`);
+    console.log(`[DEBUG] New link token generated for userId: ${userId} -> ${token}`);
     res.json({
         success: true,
         message: 'Link token generated',
@@ -42,6 +42,12 @@ router.get('/status/:userId', async (req, res) => {
             return res.status(400).json({ error: 'userId is required' });
         }
         const isLinked = await otpService.isUserLinked(userId);
+        if (isLinked) {
+            // Only log on Success to reduce noise? OR log periodic checks?
+            // Logging all checks might be noisy with polling. Let's log only if LINKED or maybe every 10th check in real app.
+            // For debugging: Log everything.
+            console.log(`[DEBUG] Status check for ${userId}: LINKED`);
+        }
         res.json({ success: true, linked: isLinked });
     } catch (err) {
         res.status(500).json({ error: err.message });

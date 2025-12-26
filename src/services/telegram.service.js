@@ -5,7 +5,14 @@ const TelegramLink = require('../models/TelegramLink');
 
 // Initialize bot: Use polling if no webhook URL is set (for local dev)
 const isPolling = !telegramWebhookUrl;
-const bot = new TelegramBot(telegramBotToken, { polling: isPolling });
+
+if (!telegramBotToken) {
+    console.error('❌ [FATAL] TELEGRAM_BOT_TOKEN is missing in environment variables!');
+} else {
+    console.log(`[INIT] Bot initializing... Token: ${telegramBotToken.substring(0, 5)}...${telegramBotToken.substring(telegramBotToken.length - 4)}`);
+}
+
+const bot = new TelegramBot(telegramBotToken || 'DUMMY_TOKEN_FOR_LINT', { polling: isPolling });
 
 console.log(`[INIT] Bot initialized in ${isPolling ? 'POLLING' : 'WEBHOOK'} mode.`);
 
@@ -32,14 +39,18 @@ async function handleStart(msg) {
     const token = tokenMatch ? tokenMatch[1].trim() : null;
 
 
-    console.log(`Processing link request for user (chatId: ${chatId})`);
+    console.log(`[DEBUG] Processing /start msg from chatId: ${chatId}, telegramUserId: ${telegramUserId}`);
+    console.log(`[DEBUG] Extracted token: "${token}"`);
 
     if (!token) {
+        console.warn(`[DEBUG] No token found in start command: "${msg.text}"`);
         return bot.sendMessage(chatId, '❌ Please use the unique link provided by your application to start.');
     }
 
     // Find the linking token
+    console.log(`[DEBUG] Querying DB for token: ${token}`);
     const link = await TelegramLink.findOne({ token });
+    console.log(`[DEBUG] DB Lookup Result: ${link ? 'FOUND' : 'NOT FOUND'}`);
 
     if (!link) {
         const allActive = await TelegramLink.find({}, 'token');

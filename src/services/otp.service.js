@@ -52,6 +52,8 @@ async function generateAndSendOtp(userId) {
     const otp = crypto.randomInt(100000, 999999).toString();
     const hashed = hashOtp(otp);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    console.log(`[DEBUG] Generated OTP for userId: ${userId} -> ${otp} (hashed: ${hashed})`);
+
     await Otp.findOneAndUpdate(
         { userId },
         { hashedOtp: hashed, expiresAt },
@@ -59,6 +61,7 @@ async function generateAndSendOtp(userId) {
     );
 
     try {
+        console.log(`[DEBUG] Sending OTP to telegramUserId: ${user.telegramUserId}`);
         await bot.sendMessage(user.telegramUserId, `Your verification code is: ${otp}`);
     } catch (err) {
 
@@ -103,8 +106,6 @@ async function unlinkTelegram(userId) {
     return result.deletedCount > 0;
 }
 
-module.exports = { generateAndSendOtp, verifyOtp, unlinkTelegram, BotBlockedError, isUserLinked };
-
 /**
  * Checks if a user has a linked Telegram account.
  * @param {string} userId - The application user ID.
@@ -114,3 +115,5 @@ async function isUserLinked(userId) {
     const user = await TelegramUser.findOne({ userId });
     return !!user;
 }
+
+module.exports = { generateAndSendOtp, verifyOtp, unlinkTelegram, BotBlockedError, isUserLinked };
