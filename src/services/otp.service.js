@@ -103,4 +103,14 @@ async function unlinkTelegram(userId) {
     return result.deletedCount > 0;
 }
 
-module.exports = { generateAndSendOtp, verifyOtp, unlinkTelegram, BotBlockedError };
+module.exports = { generateAndSendOtp, verifyOtp, unlinkTelegram, BotBlockedError, isUserLinked };
+
+/**
+ * Checks if a user has a linked Telegram account.
+ * @param {string} userId - The application user ID.
+ * @returns {Promise<boolean>} - True if linked, false otherwise.
+ */
+async function isUserLinked(userId) {
+    const user = await TelegramUser.findOne({ userId });
+    return !!user;
+}

@@ -34,6 +34,20 @@ router.post('/link-token', async (req, res) => {
     });
 });
 
+// 1.5 Check Link Status
+router.get('/status/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        if (!userId) {
+            return res.status(400).json({ error: 'userId is required' });
+        }
+        const isLinked = await otpService.isUserLinked(userId);
+        res.json({ success: true, linked: isLinked });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // 2️⃣ Request OTP after Telegram linked
 router.post('/request-otp', async (req, res) => {
     const { userId } = req.body;
